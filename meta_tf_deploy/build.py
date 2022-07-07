@@ -1,7 +1,9 @@
 from cnn2snn import check_model_compatibility, quantize, convert
+import tensorflow as tf
 from tensorflow import keras
 import argparse
 import json, os, shutil, sys
+import numpy as np
 
 # parse arguments (--metadata FILE is passed in)
 parser = argparse.ArgumentParser(description='Custom deploy block demo')
@@ -11,6 +13,7 @@ args = parser.parse_args()
 # load the metadata.json file
 with open(args.metadata) as f:
     metadata = json.load(f)
+    print(f)
 
 print('Copying files to build directory...')
 input_dir = metadata['folders']['input']
@@ -24,17 +27,21 @@ os.makedirs(build_dir)
 
 # copy in the data from input folder
 os.system('cp -r ' + input_dir + '/* ' + build_dir)
-shutil.unpack_archive(os.path.join(build_dir, 'trained.savedmodel.zip'), build_dir, 'zip')
+shutil.unpack_archive(os.path.join(build_dir, 'trained.h5.zip'), build_dir, 'zip')
 os.system('ls -l ' + build_dir)
 
 print('Copying files to build directory OK')
 print('')
 
-model = keras.models.load_model(os.path.join(build_dir, 'saved_model'))
+model = keras.models.load_model(os.path.join(build_dir, 'model.h5'))
 check_model_compatibility(model, input_is_image=False)
 
-model_quantized = quantize(model, 8, 4, 4) 
+model_quantized = quantize(model, 8, 4, 4)
 
+print(os.listdir('/data'))
+
+x_test = np.load('X_train_features.npy', mmap_mode='r')
+y_test_orig = np.load('y_train.npy')
 
 
 # How many epochs we will fine tune the model with QAT
