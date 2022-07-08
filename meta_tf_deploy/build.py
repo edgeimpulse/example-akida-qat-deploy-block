@@ -73,7 +73,7 @@ model_quantized.fit(train_dataset,
                 validation_data=validation_dataset
             )
 
-model_akida = convert(model_quantized, input_is_image=False)
+model_akida = convert(model_quantized, input_is_image=True)
 model_akida.summary()
 # remove everything besides quantized model and akida_model
 os.system('rm -r ' + build_dir)
