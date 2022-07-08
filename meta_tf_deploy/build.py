@@ -46,16 +46,20 @@ print(os.listdir(args.data))
 # x_test = np.load(os.path.join(args.data, 'X_train_features.npy'), mmap_mode='r')
 # y_test_orig = np.load(os.path.join(args.data, 'y_train.npy'))
 
-X_train, X_test, Y_train, Y_test, X_train_raw = training.split_and_shuffle_data('npy', len(metadata['classes']),
+X_train, X_test, Y_train, Y_test, _ = training.split_and_shuffle_data('npy', len(metadata['classes']),
                                                          None, 'classification', 3, '/data')
 
 train_dataset = training.get_dataset_standard(X_train, Y_train)
 validation_dataset = training.get_dataset_standard(X_test, Y_test)
 
-input_shape = metadata['tfliteModels'][0]['details']['inputs'][0]['shape']
+input_shape = metadata['tfliteModels'][0]['details']['inputs'][0]['shape'][1:]
 
 train_dataset = train_dataset.map(training.get_reshape_function(input_shape), tf.data.experimental.AUTOTUNE)
 validation_dataset = validation_dataset.map(training.get_reshape_function(input_shape), tf.data.experimental.AUTOTUNE)
+
+BATCH_SIZE = 32
+train_dataset = train_dataset.batch(BATCH_SIZE, drop_remainder=False)
+validation_dataset = validation_dataset.batch(BATCH_SIZE, drop_remainder=False)
 
 # How many epochs we will fine tune the model with QAT
 FINE_TUNE_EPOCHS = 30
@@ -66,8 +70,7 @@ model_quantized.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.00000
 model_quantized.fit(train_dataset,
                 epochs=FINE_TUNE_EPOCHS,
                 verbose=2,
-                validation_data=validation_dataset,
-                class_weight=None
+                validation_data=validation_dataset
             )
 
 model_akida = convert(model_quantized, input_is_image=False)
