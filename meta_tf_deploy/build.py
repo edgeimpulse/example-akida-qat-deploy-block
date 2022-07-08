@@ -4,19 +4,16 @@ from tensorflow import keras
 import argparse
 import json, os, shutil, sys
 import numpy as np
-import training
+import training, profiling
 
 # parse arguments (--metadata FILE is passed in)
 parser = argparse.ArgumentParser(description='Custom deploy block demo')
 parser.add_argument('--metadata', type=str)
-parser.add_argument('--data', type=str, default='/data')
 args = parser.parse_args()
 
 # load the metadata.json file
 with open(args.metadata) as f:
     metadata = json.load(f)
-
-print(json.dumps(metadata))
 
 print('Copying files to build directory...')
 input_dir = metadata['folders']['input']
@@ -37,14 +34,10 @@ print('Copying files to build directory OK')
 print('')
 
 model = keras.models.load_model(os.path.join(build_dir, 'model.h5'))
+
 check_model_compatibility(model, input_is_image=False)
 
 model_quantized = quantize(model, 8, 4, 4)
-
-print(os.listdir(args.data))
-
-# x_test = np.load(os.path.join(args.data, 'X_train_features.npy'), mmap_mode='r')
-# y_test_orig = np.load(os.path.join(args.data, 'y_train.npy'))
 
 X_train, X_test, Y_train, Y_test, _ = training.split_and_shuffle_data('npy', len(metadata['classes']),
                                                          None, 'classification', 3, '/data')
@@ -60,6 +53,12 @@ validation_dataset = validation_dataset.map(training.get_reshape_function(input_
 BATCH_SIZE = 32
 train_dataset = train_dataset.batch(BATCH_SIZE, drop_remainder=False)
 validation_dataset = validation_dataset.batch(BATCH_SIZE, drop_remainder=False)
+
+# Evaluate ordinary model
+report, accuracy, loss = profiling.evaluate(model, validation_dataset, Y_test, len(metadata['classes']))
+print(report)
+print(accuracy)
+print(loss)
 
 # How many epochs we will fine tune the model with QAT
 FINE_TUNE_EPOCHS = 30
