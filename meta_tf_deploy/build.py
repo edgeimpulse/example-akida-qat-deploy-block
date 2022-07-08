@@ -10,6 +10,7 @@ from tensorflow import keras
 
 from cnn2snn import check_model_compatibility, quantize, convert
 import akida
+from ascii_graph import Pyasciigraph
 
 import training, profiling
 
@@ -17,6 +18,7 @@ import training, profiling
 parser = argparse.ArgumentParser(description='Custom deploy block demo')
 parser.add_argument('--metadata', type=str)
 parser.add_argument('--learning_rate', type=float, default=0.0005)
+parser.add_argument('--fine_tune_epochs', type=int, default=30)
 args = parser.parse_args()
 
 # load the metadata.json file
@@ -69,14 +71,13 @@ print('')
 
 def profile_model(keras_model, description):
     print(f'Profiling {description} model...')
-    report, accuracy, f1, loss = profiling.evaluate(model, validation_dataset, Y_test, len(metadata['classes']))
-    print(f'{description} model performance:')
+    report, accuracy, f1, loss = profiling.evaluate(keras_model, validation_dataset, Y_test, len(metadata['classes']))
     print(f'Accuracy: {accuracy}')
     print(f'F1 score: {f1}')
     print('')
     return accuracy
 
-accuracy_float = profile_model(model, 'Floating point')
+accuracy_float = profile_model(model, 'floating point')
 
 print('Performing post-training quantization...')
 model_quantized = quantize(model,
@@ -86,18 +87,17 @@ model_quantized = quantize(model,
 print('Performing post-training quantization OK')
 print('')
 
-accuracy_quantized = profile_model(model_quantized, 'Post-training quantized')
+accuracy_quantized = profile_model(model_quantized, 'post-training quantized')
 
 print('Fine-tuning to recover accuracy...')
 print(f'Using learning rate {args.learning_rate}')
-# How many epochs we will fine tune the model with QAT
-FINE_TUNE_EPOCHS = 30
 model_quantized.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=args.learning_rate),
                 loss='categorical_crossentropy',
                 metrics=['accuracy'])
 
 model_quantized.fit(train_dataset,
-                epochs=FINE_TUNE_EPOCHS,
+                epochs=args.fine_tune_epochs,
+                # Change this?
                 verbose=2,
                 validation_data=validation_dataset
             )
@@ -105,18 +105,29 @@ model_quantized.fit(train_dataset,
 print('Fine-tuning to recover accuracy OK')
 print('')
 
-accuracy_quantized_trained = profile_model(model_quantized, 'Quantization-aware trained')
+accuracy_quantized_trained = profile_model(model_quantized, 'quantization-aware trained')
 
-print(f'Float accuracy:     {accuracy_float}')
-print(f'Quantized accuracy: {accuracy_quantized}')
-diff = accuracy_float - accuracy_quantized
+stats = [('Float', accuracy_float),
+         ('Quantized', accuracy_quantized),
+         ('QAT', accuracy_quantized_trained)]
+
+graph = Pyasciigraph(line_length=50)
+for line in graph.graph('Comparison of model accuracy', stats):
+    print(line)
+
+print(f'Float:                   {accuracy_float}')
+print(f'Quantized:               {accuracy_quantized}')
+print(f'QAT:                     {accuracy_quantized_trained}')
+diff = accuracy_float - accuracy_quantized_trained
 if diff > 0:
     symbol = '+'
 else:
     symbol = ''
-print(f'Difference:         {symbol}{diff}')
+print(f'Difference (float->QAT): {symbol}{diff}')
+print('')
 
 print('Converting to Akida model...')
+print('')
 model_akida = convert(model_quantized, input_is_image=True)
 
 model_akida.map(akida.AKD1000())
