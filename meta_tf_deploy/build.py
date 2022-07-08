@@ -1,4 +1,5 @@
 from cnn2snn import check_model_compatibility, quantize, convert
+import akida
 import tensorflow as tf
 from tensorflow import keras
 import argparse
@@ -54,8 +55,14 @@ BATCH_SIZE = 32
 train_dataset = train_dataset.batch(BATCH_SIZE, drop_remainder=False)
 validation_dataset = validation_dataset.batch(BATCH_SIZE, drop_remainder=False)
 
-# Evaluate ordinary model
+print('Float model')
 report, accuracy, loss = profiling.evaluate(model, validation_dataset, Y_test, len(metadata['classes']))
+print(report)
+print(accuracy)
+print(loss)
+
+print('Post-training quantized model')
+report, accuracy, loss = profiling.evaluate(model_quantized, validation_dataset, Y_test, len(metadata['classes']))
 print(report)
 print(accuracy)
 print(loss)
@@ -72,8 +79,19 @@ model_quantized.fit(train_dataset,
                 validation_data=validation_dataset
             )
 
+# Evaluate ordinary model
+print('Quantization-aware trained model')
+report, accuracy, loss = profiling.evaluate(model_quantized, validation_dataset, Y_test, len(metadata['classes']))
+print(report)
+print(accuracy)
+print(loss)
+
 model_akida = convert(model_quantized, input_is_image=True)
+
+model_akida.map(akida.AKD1000())
+
 model_akida.summary()
+
 # remove everything besides quantized model and akida_model
 os.system('rm -r ' + build_dir)
 model_quantized.save(os.path.join(build_dir, 'saved_model_keras_quantized'))
