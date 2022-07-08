@@ -118,7 +118,7 @@ for line in graph.graph('Comparison of model accuracy', stats):
 print(f'Float:                   {accuracy_float}')
 print(f'Quantized:               {accuracy_quantized}')
 print(f'QAT:                     {accuracy_quantized_trained}')
-diff = accuracy_float - accuracy_quantized_trained
+diff = accuracy_quantized_trained - accuracy_float
 if diff > 0:
     symbol = '+'
 else:
