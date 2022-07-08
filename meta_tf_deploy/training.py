@@ -128,8 +128,6 @@ def get_dataset_standard(X_values, Y_values):
     # the train jobs have at least 8GiB of RAM, so this should be fine
     if (memory_used < 1 * 1024 * 1024 * 1024):
         return tf.data.Dataset.from_tensor_slices((X_values, Y_values))
-    # otherwise we'll page the data in using a generator,
-    # will be revisited in https://github.com/edgeimpulse/edgeimpulse/issues/3847 to lower memory reqs
     else:
         # Using the 'args' param of 'from_generator' results in a memory leak, so we instead use a function that
         # returns a generator that wraps the data arrays.
