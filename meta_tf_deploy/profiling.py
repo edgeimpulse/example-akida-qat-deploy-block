@@ -18,5 +18,6 @@ def evaluate(model, dataset, Y_test, num_classes):
     report = classification_report(Y_test.argmax(axis=1), prediction.argmax(axis=1), output_dict=True, zero_division=0)
 
     accuracy = report['accuracy']
+    f1 = report['weighted avg']['f1-score']
     loss = log_loss(Y_test, prediction)
-    return report, accuracy, loss
+    return report, accuracy, f1, loss
