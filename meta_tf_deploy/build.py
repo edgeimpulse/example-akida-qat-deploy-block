@@ -81,9 +81,9 @@ accuracy_float = profile_model(model, 'floating point')
 
 print('Performing post-training quantization...')
 model_quantized = quantize(model,
-                           weight_quantization=8,
+                           weight_quantization=4,
                            activ_quantization=4,
-                           input_weight_quantization=4)
+                           input_weight_quantization=8)
 print('Performing post-training quantization OK')
 print('')
 
