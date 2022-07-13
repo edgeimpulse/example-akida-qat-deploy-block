@@ -18,7 +18,7 @@ import training, profiling
 parser = argparse.ArgumentParser(description='Custom deploy block demo')
 parser.add_argument('--metadata', type=str)
 parser.add_argument('--learning_rate', type=float, default=0.0005)
-parser.add_argument('--fine_tune_epochs', type=int, default=30)
+parser.add_argument('--fine_tune_epochs', type=int, default=60)
 args = parser.parse_args()
 
 # load the metadata.json file
@@ -89,6 +89,13 @@ print('')
 
 accuracy_quantized = profile_model(model_quantized, 'post-training quantized')
 
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_accuracy',
+                                                  mode='max',
+                                                  verbose=1,
+                                                  min_delta=0,
+                                                  patience=10,
+                                                  restore_best_weights=True)
+
 print('Fine-tuning to recover accuracy...')
 print(f'Using learning rate {args.learning_rate}')
 model_quantized.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=args.learning_rate),
@@ -97,9 +104,9 @@ model_quantized.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=args.le
 
 model_quantized.fit(train_dataset,
                 epochs=args.fine_tune_epochs,
-                # Change this?
                 verbose=2,
-                validation_data=validation_dataset
+                validation_data=validation_dataset,
+                callbacks=[early_stopping]
             )
 
 print('Fine-tuning to recover accuracy OK')
